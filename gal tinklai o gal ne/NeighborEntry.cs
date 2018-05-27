@@ -2,31 +2,42 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace gal_tinklai_o_gal_ne
 {
-    class NeighborEntry
+    public class NeighborEntry
     {
-        public int Handle { get; set; }
         public string Address { get; set; }
-        //public string Interface { get; set; }
-        public int Hold { get; set; }
-        public int Uptime { get; set; }
-        public int SmoothRoundTripTime { get; set; }
-        public int RetransmissionTimeout { get; set; }
-        //public int QueueCount { get; set; }
-        public int SequenceNumber { get; set; }
-
-        public NeighborEntry(int handle, string address, int hold, int uptime, int srtt, int rtt, int seq)
+        public TimeSpan Hold
         {
-            Handle = handle;
+            get
+            {
+                return HoldUntil.Subtract(DateTime.Now);
+            }
+        }
+        public TimeSpan Uptime
+        {
+            get
+            {
+                return DateTime.Now.Subtract(timeCreated);
+            }
+        }
+        private DateTime timeCreated;
+        private DateTime HoldUntil;
+        private TimeSpan holdFor;
+
+        public NeighborEntry(string address, TimeSpan hold, TimeSpan uptime)
+        {
             Address = address;
-            Hold = hold;
-            Uptime = uptime;
-            SmoothRoundTripTime = srtt;
-            RetransmissionTimeout = rtt;
-            SequenceNumber = seq;
+            holdFor = hold;
+            HoldUntil = DateTime.Now.Add(hold);
+            timeCreated = DateTime.Now.Subtract(uptime);
+        }
+        public void ExtendHold()
+        {
+            HoldUntil = DateTime.Now.Add(holdFor);
         }
     }
 }
