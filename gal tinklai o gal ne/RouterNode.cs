@@ -18,6 +18,8 @@ namespace gal_tinklai_o_gal_ne
         public event EventHandler<GoSelectionEventArgs> Selected;
         public event EventHandler<GoSelectionEventArgs> Deselected;
 
+        private object tablesLock = new object();
+
         public AsyncBindingList<NeighborEntry> NeighborhoodTable { get; set; }
         public AsyncBindingList<RouteEntry> RoutingTable { get; set; }
         public AsyncBindingList<TopologyEntry> TopologyTable { get; set; }
@@ -27,7 +29,7 @@ namespace gal_tinklai_o_gal_ne
             NeighborhoodTable = new AsyncBindingList<NeighborEntry>(invoke);
             RoutingTable = new AsyncBindingList<RouteEntry>(invoke);
             TopologyTable = new AsyncBindingList<TopologyEntry>(invoke);
-            NeighborhoodTable.Add(new NeighborEntry("dummy" + text, TimeSpan.FromSeconds(15), TimeSpan.Zero));
+            //NeighborhoodTable.Add(new NeighborEntry("dummy" + text, TimeSpan.FromSeconds(15), TimeSpan.Zero));
             helloTimer = new Timer(SendHello, null, 0, 5000);
             holdTimer = new Timer(RemoveMissingNeighbors, null, 0, 100);
             Text = text;
@@ -37,17 +39,73 @@ namespace gal_tinklai_o_gal_ne
 
         private void RemoveMissingNeighbors(object o)
         {
-            IEnumerable<NeighborEntry> list = NeighborhoodTable.Where(n => n.Hold.CompareTo(TimeSpan.Zero) < 0).ToList();
-            
-            foreach(NeighborEntry e in list)
+            IEnumerable<NeighborEntry> list;
+            lock (tablesLock)
             {
-                NeighborhoodTable.Remove(e);
+                list = NeighborhoodTable.Where(n => n.Hold.CompareTo(TimeSpan.Zero) < 0).ToList();
             }
+            foreach (NeighborEntry e in list)
+            {
+                lock (tablesLock)
+                {
+                    NeighborhoodTable.Remove(e);
+                    var top = TopologyTable.FirstOrDefault(t => t.Destination.Equals(e.Address) && t.Neighbor.Equals(e.Address));
+                    if (top != null)
+                        TopologyTable.Remove(top);
+                }
+                foreach(var node in Nodes)
+                {
+                    RouterNode router = node as RouterNode;
+                    if (router == null)
+                        continue;
+                    GoLabeledLink link = Links.FirstOrDefault(l => l is GoLabeledLink && ((l as GoLabeledLink).FromNode.Equals(router) || (l as GoLabeledLink).ToNode.Equals(router))) as GoLabeledLink;
+                    TopologyEntry currentTopology;
+                    lock (tablesLock)
+                    {
+                        currentTopology = TopologyTable.Where(t => t.Destination.Equals(e.Address))?.OrderBy(t => t.Feasible).FirstOrDefault();
+                    }
+                    int newAdvertised = currentTopology == null ? -1 : currentTopology.Feasible;
+                    router.UpdateTopology(new TopologyEntry(e.Address, Text, newAdvertised + link.UserFlags, newAdvertised));
+                    RouteEntry currentRoute;
+                    lock (tablesLock)
+                    {
+                        currentRoute = RoutingTable.FirstOrDefault(r => r.Destination.Equals(e.Address));
+                        if (!currentRoute.Neighbor.Equals(currentTopology.Neighbor))
+                        {
+                            RoutingTable.Remove(currentRoute);
+                            RoutingTable.Add(new RouteEntry(e.Address, currentTopology.Neighbor, DateTime.Now));
+                        }
+                    }
+                }
+            }
+        }
+
+        public void UpdateTopology(TopologyEntry suggested)
+        {
+            //remove the entry
+            var top = TopologyTable.FirstOrDefault(t => t.Destination.Equals(suggested.Destination) && t.Neighbor.Equals(suggested.Neighbor));
+            if (top != null)
+                lock (tablesLock)
+                {
+                    TopologyTable.Remove(top);
+                }
+            if(suggested.Advertised >= 0)
+            {
+                //add a new one
+                lock(tablesLock)
+                {
+                    AddTopology(suggested);
+                }
+            }
+
         }
 
         public void AddNeighbor(RouterNode neighbor, int metric)
         {
-            NeighborhoodTable.Add(new NeighborEntry(neighbor.Text, TimeSpan.FromSeconds(15), TimeSpan.Zero));
+            lock(tablesLock)
+            {
+                NeighborhoodTable.Add(new NeighborEntry(neighbor.Text, TimeSpan.FromSeconds(15), TimeSpan.Zero));
+            }
             AddTopology(new TopologyEntry(neighbor.Text, neighbor.Text, metric, 0));
         }
 
@@ -91,62 +149,72 @@ namespace gal_tinklai_o_gal_ne
             }
         }
 
-        private void AddTopology(TopologyEntry newEntry)
+        public void AddTopology(TopologyEntry newEntry)
         {
-            if (newEntry.Destination.Equals(Text))
-                return;
-            /*
-            foreach(var neighbor in NeighborhoodTable)
+            lock (tablesLock)
             {
-                if (neighbor.Address.Equals(newEntry.Neighbor))
-                    continue;
-            }
-            */
-            var route = RoutingTable.FirstOrDefault(r => r.Destination.Equals(newEntry.Destination));
-            if (route == null)
-            {
-                //dar neturim route, reiskia nieko nebus ir topology table
-                RoutingTable.Add(new RouteEntry(newEntry.Destination, newEntry.Neighbor, DateTime.Now));
-                TopologyTable.Add(newEntry);
-                return;
-            }
-
-            var existing = TopologyTable.Where(t => t.Destination.Equals(newEntry.Destination));
-            var fastest = existing.OrderBy(t => t.Feasible).FirstOrDefault();
-
-            if (newEntry.Advertised >= fastest.Feasible)
-                return;
-
-            if(existing.Count() >= 6)
-            {
-                //overflow
-                var slowest = existing.OrderByDescending(t => t.Feasible).FirstOrDefault();
-                if (slowest.Feasible < newEntry.Feasible)
+                if (newEntry.Destination.Equals(Text))
                     return;
-                TopologyTable.Remove(slowest);
-            }
-            TopologyTable.Add(newEntry);
 
-            if(newEntry.Feasible < fastest.Feasible)
-            {
-                RoutingTable.Remove(route);
-                RoutingTable.Add(new RouteEntry(newEntry.Destination, newEntry.Neighbor, DateTime.Now));
+                foreach (var neighbor in NeighborhoodTable)
+                {
+                    if (neighbor.Address.Equals(newEntry.Neighbor))
+                        continue;
+
+                    RouterNode node = Nodes.FirstOrDefault(n => n is RouterNode && (n as RouterNode).Text.Equals(neighbor.Address)) as RouterNode;
+                    GoLabeledLink link = Links.FirstOrDefault(l => l is GoLabeledLink && ((l as GoLabeledLink).FromNode.Equals(node) || (l as GoLabeledLink).ToNode.Equals(node))) as GoLabeledLink;
+                    node.AddTopology(new TopologyEntry(newEntry.Destination, Text, link.UserFlags + newEntry.Feasible, newEntry.Feasible));
+                }
+
+                var route = RoutingTable.FirstOrDefault(r => r.Destination.Equals(newEntry.Destination));
+                if (route == null)
+                {
+                    //dar neturim route, reiskia nieko nebus ir topology table
+                    RoutingTable.Add(new RouteEntry(newEntry.Destination, newEntry.Neighbor, DateTime.Now));
+                    TopologyTable.Add(newEntry);
+                    return;
+                }
+
+                var existing = TopologyTable.Where(t => t.Destination.Equals(newEntry.Destination));
+                var fastest = existing.OrderBy(t => t.Feasible).FirstOrDefault();
+
+                if (newEntry.Advertised >= fastest.Feasible)
+                    return;
+
+                if (existing.Count() >= 6)
+                {
+                    //overflow
+                    var slowest = existing.OrderByDescending(t => t.Feasible).FirstOrDefault();
+                    if (slowest.Feasible < newEntry.Feasible)
+                        return;
+                    TopologyTable.Remove(slowest);
+                }
+                TopologyTable.Add(newEntry);
+
+                if (newEntry.Feasible < fastest.Feasible)
+                {
+                    RoutingTable.Remove(route);
+                    RoutingTable.Add(new RouteEntry(newEntry.Destination, newEntry.Neighbor, DateTime.Now));
+                }
             }
         }
 
         private void SendHello(object state)
         {
-            List<Thread> threads = new List<Thread>();
-            foreach(var node in Nodes)
+            helloTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            List<Task> tasks = new List<Task>();
+            foreach (var node in Nodes)
             {
                 RouterNode router = node as RouterNode;
-                if(router != null)
-                    threads.Add(new Thread(() => SendHelloTo(router)));
+                if (router != null)
+                    tasks.Add(SendHelloTo(router));
             }
-            threads.ForEach(t => t.Start());
+
+            Task.WaitAll(tasks.ToArray());
+            helloTimer.Change(5000, 5000);
         }
 
-        private async void SendHelloTo(RouterNode destination)
+        private async Task SendHelloTo(RouterNode destination)
         {
             try
             {
