@@ -65,8 +65,6 @@
             // 
             // tabControl1
             // 
-            this.tabControl1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl1.Controls.Add(this.neighborhoodTab);
             this.tabControl1.Controls.Add(this.routingTab);
             this.tabControl1.Controls.Add(this.topologyTab);
@@ -81,7 +79,6 @@
             this.neighborhoodTab.Controls.Add(this.neighborTable);
             this.neighborhoodTab.Location = new System.Drawing.Point(4, 22);
             this.neighborhoodTab.Name = "neighborhoodTab";
-            this.neighborhoodTab.Padding = new System.Windows.Forms.Padding(3);
             this.neighborhoodTab.Size = new System.Drawing.Size(949, 197);
             this.neighborhoodTab.TabIndex = 0;
             this.neighborhoodTab.Text = "Kaimynystės lentelė";
@@ -94,10 +91,10 @@
             this.neighborTable.AllowUserToResizeRows = false;
             this.neighborTable.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.neighborTable.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.neighborTable.Location = new System.Drawing.Point(3, 3);
+            this.neighborTable.Location = new System.Drawing.Point(0, 0);
             this.neighborTable.Name = "neighborTable";
             this.neighborTable.ReadOnly = true;
-            this.neighborTable.Size = new System.Drawing.Size(943, 191);
+            this.neighborTable.Size = new System.Drawing.Size(949, 197);
             this.neighborTable.TabIndex = 0;
             // 
             // routingTab
@@ -105,7 +102,6 @@
             this.routingTab.Controls.Add(this.routingTable);
             this.routingTab.Location = new System.Drawing.Point(4, 22);
             this.routingTab.Name = "routingTab";
-            this.routingTab.Padding = new System.Windows.Forms.Padding(3);
             this.routingTab.Size = new System.Drawing.Size(949, 197);
             this.routingTab.TabIndex = 1;
             this.routingTab.Text = "Maršrutizavimo lentelė";
@@ -118,10 +114,10 @@
             this.routingTable.AllowUserToResizeRows = false;
             this.routingTable.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.routingTable.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.routingTable.Location = new System.Drawing.Point(3, 3);
+            this.routingTable.Location = new System.Drawing.Point(0, 0);
             this.routingTable.Name = "routingTable";
             this.routingTable.ReadOnly = true;
-            this.routingTable.Size = new System.Drawing.Size(943, 191);
+            this.routingTable.Size = new System.Drawing.Size(949, 197);
             this.routingTable.TabIndex = 1;
             // 
             // topologyTab
@@ -138,14 +134,13 @@
             // 
             this.topologyTable.AllowUserToAddRows = false;
             this.topologyTable.AllowUserToDeleteRows = false;
-            this.topologyTable.AllowUserToResizeRows = false;
             this.topologyTable.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.topologyTable.Dock = System.Windows.Forms.DockStyle.Fill;
             this.topologyTable.Location = new System.Drawing.Point(0, 0);
             this.topologyTable.Name = "topologyTable";
             this.topologyTable.ReadOnly = true;
             this.topologyTable.Size = new System.Drawing.Size(949, 197);
-            this.topologyTable.TabIndex = 1;
+            this.topologyTable.TabIndex = 0;
             // 
             // originBox
             // 
@@ -217,13 +212,13 @@
         private System.Windows.Forms.TabPage neighborhoodTab;
         private System.Windows.Forms.DataGridView neighborTable;
         private System.Windows.Forms.TabPage routingTab;
-        private System.Windows.Forms.TabPage topologyTab;
         private System.Windows.Forms.DataGridView routingTable;
-        private System.Windows.Forms.DataGridView topologyTable;
         private System.Windows.Forms.ComboBox originBox;
         private System.Windows.Forms.ComboBox destBox;
         private System.Windows.Forms.Button refreshButton;
         private System.Windows.Forms.Button sendButton;
+        private System.Windows.Forms.TabPage topologyTab;
+        private System.Windows.Forms.DataGridView topologyTable;
     }
 }
 

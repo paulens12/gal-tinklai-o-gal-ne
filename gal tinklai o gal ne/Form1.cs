@@ -68,7 +68,8 @@ namespace gal_tinklai_o_gal_ne
                 Action<object, EventArgs> act = (o, ea) =>
                 {
                     link.MidLabel = new GoText { Text = form.inputBox.Text };
-                    link.RealLink.UserFlags = int.Parse(form.inputBox.Text);
+                    link.UserFlags = int.Parse(form.inputBox.Text);
+                    link.UserObject = new object();
                     cont = true;
                     Enabled = true;
                     form.Close();
